@@ -1,4 +1,4 @@
-"""Esquemas de validacion (Pydantic) para la entidad Producto."""
+"""Esquemas de validacion (Pydantic)."""
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -21,3 +21,23 @@ class ProductoOut(ProductoIn):
     """Producto tal como lo devuelve la API (incluye el id autogenerado)."""
 
     id: int
+
+
+class LoginIn(BaseModel):
+    email: str = Field(..., min_length=1, max_length=120)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class UsuarioOut(BaseModel):
+    """Datos publicos del usuario (nunca incluye el hash de la contrasena)."""
+
+    id: int
+    nombre: str
+    email: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int  # segundos de vigencia del token
+    usuario: UsuarioOut

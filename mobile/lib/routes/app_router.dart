@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/auth_controller.dart';
 import '../views/dashboard_view.dart';
+import '../views/login_view.dart';
 import '../views/producto_detail_view.dart';
 import '../views/producto_form_view.dart';
 import '../views/producto_list_view.dart';
+import '../views/session_view.dart';
+import '../views/splash_view.dart';
 import '../widgets/state_views.dart';
 
 Widget _notFound(String message) {
@@ -14,24 +18,57 @@ Widget _notFound(String message) {
   );
 }
 
-/// Navegacion con go_router.
+/// Navegacion con go_router y proteccion de rutas segun la sesion.
 ///
-///   /                          Dashboard
-///   /productos                 Listado
-///   /productos/nuevo           Formulario de registro (POST)
-///   /productos/:id             Detalle (GET /productos/{id})
-///   /productos/:id/editar      Formulario de edicion (PUT)
+///   /splash                    Verificando la sesion guardada
+///   /login                     Inicio de sesion            (publica)
+///   /                          Dashboard                   (protegida)
+///   /sesion                    Informacion de la sesion    (protegida)
+///   /productos                 Listado                     (protegida)
+///   /productos/nuevo           Registro (POST)             (protegida)
+///   /productos/:id             Detalle                     (protegida)
+///   /productos/:id/editar      Edicion (PUT)               (protegida)
 ///
-/// "nuevo" se declara antes que ":id" para que no sea interpretado como un id.
+/// `redirect` se ejecuta cada vez que cambia la sesion (refreshListenable):
+/// sin sesion cualquier ruta lleva a /login; con sesion /login lleva al dashboard.
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  refreshListenable: AuthController.instance,
+  redirect: (context, state) {
+    final auth = AuthController.instance;
+    final ubicacion = state.matchedLocation;
+
+    if (auth.status == AuthStatus.unknown) {
+      return ubicacion == '/splash' ? null : '/splash';
+    }
+    if (!auth.isAuthenticated) {
+      return ubicacion == '/login' ? null : '/login';
+    }
+    if (ubicacion == '/login' || ubicacion == '/splash') return '/';
+    return null;
+  },
   errorBuilder: (context, state) =>
       _notFound('La página "${state.uri}" no existe.'),
   routes: [
     GoRoute(
+      path: '/splash',
+      name: 'splash',
+      builder: (context, state) => const SplashView(),
+    ),
+    GoRoute(
+      path: '/login',
+      name: 'login',
+      builder: (context, state) => const LoginView(),
+    ),
+    GoRoute(
       path: '/',
       name: 'dashboard',
       builder: (context, state) => const DashboardView(),
+    ),
+    GoRoute(
+      path: '/sesion',
+      name: 'sesion',
+      builder: (context, state) => const SessionView(),
     ),
     GoRoute(
       path: '/productos',
