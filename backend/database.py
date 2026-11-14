@@ -1,6 +1,7 @@
 """Acceso a la base de datos SQLite (persistencia real en el archivo inventario.db)."""
 import sqlite3
 from pathlib import Path
+from typing import Optional
 
 DB_PATH = Path(__file__).parent / "inventario.db"
 
@@ -34,7 +35,7 @@ def get_db():
 
 
 def init_db() -> None:
-    """Crea la tabla si no existe y carga 10 productos de prueba si esta vacia."""
+    """Crea las tablas si no existen y carga 10 productos de prueba si esta vacia."""
     conn = get_connection()
     try:
         conn.execute(
@@ -50,6 +51,16 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre        TEXT NOT NULL,
+                email         TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL
+            )
+            """
+        )
         total = conn.execute("SELECT COUNT(*) FROM productos").fetchone()[0]
         if total == 0:
             conn.executemany(
@@ -60,3 +71,24 @@ def init_db() -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------- usuarios
+def get_user_by_email(conn: sqlite3.Connection, email: str) -> Optional[dict]:
+    fila = conn.execute(
+        "SELECT * FROM usuarios WHERE lower(email) = lower(?)", (email.strip(),)
+    ).fetchone()
+    return dict(fila) if fila else None
+
+
+def get_user_by_id(conn: sqlite3.Connection, user_id: int) -> Optional[dict]:
+    fila = conn.execute("SELECT * FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+    return dict(fila) if fila else None
+
+
+def create_user(conn: sqlite3.Connection, nombre: str, email: str, password_hash: str) -> None:
+    conn.execute(
+        "INSERT INTO usuarios (nombre, email, password_hash) VALUES (?, ?, ?)",
+        (nombre, email.strip(), password_hash),
+    )
+    conn.commit()
