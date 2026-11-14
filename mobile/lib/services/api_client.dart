@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
 import '../config/env.dart';
+import 'auth_interceptor.dart';
+import 'session_storage.dart';
 
 /// Error controlado de comunicacion con la API. Su mensaje se muestra al usuario.
 class ApiException implements Exception {
@@ -57,7 +59,8 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// Cliente Dio unico de la app, configurado con la URL base del .env.
+/// Cliente Dio unico de la app, configurado con la URL base del .env
+/// y con el interceptor que adjunta el token JWT.
 class ApiClient {
   ApiClient._()
       : dio = Dio(
@@ -67,9 +70,22 @@ class ApiClient {
             receiveTimeout: const Duration(seconds: 10),
             headers: {'Accept': 'application/json'},
           ),
-        );
+        ) {
+    dio.interceptors.add(
+      AuthInterceptor(
+        SessionStorage(),
+        onUnauthorized: (message) async {
+          final handler = ApiClient.onUnauthorized;
+          if (handler != null) await handler(message);
+        },
+      ),
+    );
+  }
 
   static final ApiClient instance = ApiClient._();
+
+  /// Lo asigna AuthController: se invoca cuando la API responde 401.
+  static Future<void> Function(String message)? onUnauthorized;
 
   final Dio dio;
 }
